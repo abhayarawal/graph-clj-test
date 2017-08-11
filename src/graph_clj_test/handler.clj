@@ -85,12 +85,18 @@
 	(put! hook "hellllooo")
 	"Doing it now!")
 
+(defn formatter [entity]
+	{"id" (.id entity)
+	 "data" (.rawFields entity)
+	 "locale" (.locale entity)
+	 "type" (.id (.contentType entity))})
+
 (defn fetch-for [eid]
-	(let [b (->> (.one (.fetch client CDAEntry) eid)
-				  		 (.toJson gson))]
+	(let [b (.one (.fetch client CDAEntry) eid)
+				data (->> (formatter b) (.toJson gson))]
 		{	:status 200
 	 	 	:headers {"Content-Type" "application/json"}
-	 	 	:body b }))
+	 	 	:body data }))
 
 (defn run-gql []
 	(.toJson gson (execute @compiled-schema 
@@ -103,10 +109,10 @@
 												 nil nil)))
 
 (defn index-page []
-	(let [d (pmap #(let [[_ v] %1] (.toJson gson v)) (.entries synched-space))]
+	(let [d (pmap #(let [[_ v] %1] (->> v formatter)) (.entries synched-space))]
 		{ :status 200
 			:headers {"Content-Type" "application/json"}
-			:body d }))
+			:body (.toJson gson d) }))
 
 (defroutes app-routes
   (GET "/" [] (index-page))
