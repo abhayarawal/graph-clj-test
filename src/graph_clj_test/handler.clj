@@ -91,12 +91,15 @@
 	 "locale" (.locale entity)
 	 "type" (.id (.contentType entity))})
 
+(defn json-response [body]
+	{	:status 200
+ 	 	:headers {"Content-Type" "application/json"}
+ 	 	:body body })
+
 (defn fetch-for [eid]
 	(let [b (.one (.fetch client CDAEntry) eid)
 				data (->> (formatter b) (.toJson gson))]
-		{	:status 200
-	 	 	:headers {"Content-Type" "application/json"}
-	 	 	:body data }))
+		(json-response data)))
 
 (defn run-gql []
 	(.toJson gson (execute @compiled-schema 
@@ -110,9 +113,7 @@
 
 (defn index-page []
 	(let [d (pmap #(let [[_ v] %1] (->> v formatter)) (.entries synched-space))]
-		{ :status 200
-			:headers {"Content-Type" "application/json"}
-			:body (.toJson gson d) }))
+		(json-response (.toJson gson d))))
 
 (defroutes app-routes
   (GET "/" [] (index-page))
