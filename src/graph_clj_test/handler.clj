@@ -23,12 +23,9 @@
 (def synched-space
 	(.fetch (.sync client)))
 
-(go (doseq [[k v] (.entries synched-space)] (prn k)))
-
 (def test-data
 	(atom {"zg1jp4q" {:key "zg1jp4q"
 				 						:name "Mercy"}
-
 				 "7zxnlkb" {:key "7zxnlkb"
 				 						:name "Jack"}}))
 
@@ -105,9 +102,14 @@
 												 		}" 
 												 nil nil)))
 
+(defn index-page []
+	(let [d (pmap #(let [[_ v] %1] (.toJson gson v)) (.entries synched-space))]
+		{ :status 200
+			:headers {"Content-Type" "application/json"}
+			:body d }))
 
 (defroutes app-routes
-  (GET "/" [] "Hiya")
+  (GET "/" [] (index-page))
   (GET "/eid/:eid" [eid] (fetch-for eid))
   (GET "/rebuild" [] (do-rebuild))
   (GET "/gql" [] (run-gql))
