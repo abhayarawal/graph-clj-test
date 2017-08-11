@@ -20,38 +20,15 @@
 		(.setToken "f74ca89ce0dae36080afe1026708c555912e65803eb59f46a1032677f992505b")
 		.build))
 
-
-(def hook (chan))
-
-(go-loop [sch (<! hook)]
-	(if sch
-		(do
-			(println "waiting...")
-			(<! (timeout 3000))
-			(println (str "Build new schema " sch))
-			(recur (<! hook)))))
-
-
-(defn fetch-for [eid]
-	(let [b (->> (.one (.fetch client CDAEntry) eid)
-				  		 (.toJson gson))]
-		(put! hook eid)
-		{	:status 200
-	 	 	:headers {"Content-Type" "application/json"}
-	 	 	:body b }))
-
-
 (def test-data
-	{"zg1jp4q" {:key "zg1jp4q"
-	 						:name "Mercy"}
+	(atom {"zg1jp4q" {:key "zg1jp4q"
+				 						:name "Mercy"}
 
-	 "7zxnlkb" {:key "7zxnlkb"
-	 						:name "Jack"}})
+				 "7zxnlkb" {:key "7zxnlkb"
+				 						:name "Jack"}}))
 
-
-(defn resolve-hero
-	[context args _value]
-	(get test-data (:key args)))
+(def compiled-schema (atom {}))
+(def hook (chan))
 
 (def db-schema
 	;; quote map for edn
@@ -61,23 +38,66 @@
 		
 		:queries
 	  {:hero {:type :human
-	          :args {:key {:type String :default-value "zg1jp4q"}}
+	          :args {:key {:type String}}
 	          :resolve :get-hero}}})
 
+(def db-schema-2
+	;; quote map for edn
+	'{:objects
+		{:human {:fields {:key {:type String}
+			 								:name {:type String}
+			 								:age {:type Int}}}}
+		
+		:queries
+	  {:hero {:type :human
+	          :args {:key {:type String}}
+	          :resolve :get-hero}}})
 
-(def compiled-schema
-  (-> db-schema
+(defn get-compiled-schema [sch]
+	(-> sch
 	  	prn-str
       edn/read-string
       (attach-resolvers {:get-hero resolve-hero})
       schema/compile))
 
+(reset! compiled-schema (get-compiled-schema db-schema))
+
+(defn swap-schema []
+	(swap! test-data assoc "iu9mcoj" {:key "iu9mcoj"
+																		:name "Lunafreya"
+																		:age 19})
+	(reset! compiled-schema (get-compiled-schema db-schema-2)))
+
+
+(go-loop [sch (<! hook)]
+	(if sch
+		(do
+			;; (<! (timeout 5000))
+			(swap-schema)
+			(recur (<! hook)))))
+
+(defn do-rebuild []
+	(put! hook "hellllooo")
+	"Doing it now!")
+
+(defn fetch-for [eid]
+	(let [b (->> (.one (.fetch client CDAEntry) eid)
+				  		 (.toJson gson))]
+		{	:status 200
+	 	 	:headers {"Content-Type" "application/json"}
+	 	 	:body b }))
+
+(defn resolve-hero
+	[context args _value]
+	(get @test-data (:key args)))
+
 
 (defn run-gql []
-	(.toJson gson (execute compiled-schema 
+	(.toJson gson (execute @compiled-schema 
 												 "{
-												 		hero(key: \"7zxnlkb\") {
+												 		hero(key: \"iu9mcoj\") {
 												 				name
+												 				age
 												 			}
 												 		}" 
 												 nil nil)))
@@ -86,7 +106,7 @@
 (defroutes app-routes
   (GET "/" [] "Hiya")
   (GET "/eid/:eid" [eid] (fetch-for eid))
-
+  (GET "/rebuild" [] (do-rebuild))
   (GET "/gql" [] (run-gql))
 
   (route/not-found "Not Found"))
