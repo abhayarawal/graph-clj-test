@@ -102,14 +102,15 @@
 		(json-response data)))
 
 (defn run-gql []
-	(.toJson gson (execute @compiled-schema 
-												 "{
-												 		hero(key: \"iu9mcoj\") {
-												 				name
-												 				age
-												 			}
-												 		}" 
-												 nil nil)))
+	(-> (.toJson gson (execute @compiled-schema 
+														 "{
+														 		hero(key: \"iu9mcoj\") {
+														 				name
+														 				age
+														 			}
+														 		}" 
+														 nil nil))
+		json-response))
 
 (defn index-page []
 	(let [d (pmap #(let [[_ v] %1] (->> v formatter)) (.entries synched-space))]
