@@ -8,7 +8,7 @@
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [clojure.core.async :as async :refer [<! >! <!! put! timeout go-loop chan alt! go]]))
 
-(import '(com.contentful.java.cda CDAClient CDAEntry)
+(import '(com.contentful.java.cda CDAClient CDAEntry SynchronizedSpace)
 				'(com.google.gson Gson GsonBuilder))
 
 (def gson (.create (.setPrettyPrinting (GsonBuilder.))))
@@ -19,6 +19,11 @@
 		(.setSpace "nnlhr3cwksjs")
 		(.setToken "f74ca89ce0dae36080afe1026708c555912e65803eb59f46a1032677f992505b")
 		.build))
+
+(def synched-space
+	(.fetch (.sync client)))
+
+(go (doseq [[k v] (.entries synched-space)] (prn k)))
 
 (def test-data
 	(atom {"zg1jp4q" {:key "zg1jp4q"
@@ -42,7 +47,6 @@
 	          :resolve :get-hero}}})
 
 (def db-schema-2
-	;; quote map for edn
 	'{:objects
 		{:human {:fields {:key {:type String}
 			 								:name {:type String}
@@ -52,6 +56,10 @@
 	  {:hero {:type :human
 	          :args {:key {:type String}}
 	          :resolve :get-hero}}})
+
+(defn resolve-hero
+	[context args _value]
+	(get @test-data (:key args)))
 
 (defn get-compiled-schema [sch]
 	(-> sch
@@ -87,11 +95,6 @@
 	 	 	:headers {"Content-Type" "application/json"}
 	 	 	:body b }))
 
-(defn resolve-hero
-	[context args _value]
-	(get @test-data (:key args)))
-
-
 (defn run-gql []
 	(.toJson gson (execute @compiled-schema 
 												 "{
@@ -108,7 +111,6 @@
   (GET "/eid/:eid" [eid] (fetch-for eid))
   (GET "/rebuild" [] (do-rebuild))
   (GET "/gql" [] (run-gql))
-
   (route/not-found "Not Found"))
 
 

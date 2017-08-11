@@ -7,6 +7,7 @@
                  [compojure "1.5.1"]
                  [ring/ring-defaults "0.2.1"]
                  [org.clojure/core.async "0.3.443"] 
+                 [datascript "0.16.1"]
                  [com.contentful.java/java-sdk "7.6.2"]]
   :plugins [[lein-ring "0.9.7"]]
   :ring {:handler graph-clj-test.handler/app}
